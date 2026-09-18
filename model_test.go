@@ -1,10 +1,12 @@
 package main
 
 import (
+	"regexp"
 	"strings"
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/x/ansi"
 )
 
 const testLogs = `{"ts":"2026-09-18T08:00:01Z","level":"info","service":"auth-svc","msg":"listening on port 8080"}
@@ -116,6 +118,44 @@ func TestDetailShowsPrettyNestedJSON(t *testing.T) {
 	for _, want := range []string{"attrs:", `"k": "v"`, `"n": 1`} {
 		if !strings.Contains(v, want) {
 			t.Errorf("detail view missing %q", want)
+		}
+	}
+}
+
+var ansiRe = regexp.MustCompile("\x1b\\[[0-9;]*m")
+
+func plain(s string) string { return ansiRe.ReplaceAllString(s, "") }
+
+// TestHeaderAlignsWithRows guards the column offset bug where the header's
+// first cell started one column left of the row cells.
+func TestHeaderAlignsWithRows(t *testing.T) {
+	m := newTestModel(t)
+	m.width = 200
+	hdr := plain(m.headerLine())
+	row := plain(m.rowLine(0))
+	hi, ri := strings.Index(hdr, "ts"), strings.Index(row, "2026-09-18")
+	if hi < 0 || ri < 0 {
+		t.Fatalf("could not locate cells: header=%q row=%q", hdr, row)
+	}
+	// Display columns, not bytes: the row prefix contains multibyte runes.
+	hCell := ansi.StringWidth(hdr[:hi])
+	rCell := ansi.StringWidth(row[:ri])
+	if hCell != rCell {
+		t.Errorf("header cell at column %d, row cell at %d — misaligned", hCell, rCell)
+	}
+
+	// Every cell after the prefix must have identical display width in
+	// header and rows, which keeps every " │ " separator on the same
+	// column too. Rows have one extra leading part (marker + lineno), so
+	// header part i maps to row part i+1.
+	hParts := strings.Split(hdr, " │ ")
+	rParts := strings.Split(row, " │ ")
+	if len(hParts) != len(rParts)-1 {
+		t.Fatalf("cell count differs: header %d vs row %d", len(hParts), len(rParts))
+	}
+	for i := 1; i < len(hParts); i++ {
+		if w1, w2 := ansi.StringWidth(hParts[i]), ansi.StringWidth(rParts[i+1]); w1 != w2 {
+			t.Errorf("cell %d width %d (header) != %d (row)", i, w1, w2)
 		}
 	}
 }

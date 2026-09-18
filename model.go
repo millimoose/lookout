@@ -423,7 +423,9 @@ func (m Model) lineNoWidth() int {
 func (m Model) headerLine() string {
 	lw := m.lineNoWidth()
 	var b strings.Builder
-	b.WriteString(strings.Repeat(" ", lw+4))
+	// Rows prefix cells with marker(1) + space(1) + lineno(lw) + " │ "(3);
+	// the header must start its first cell at the same column.
+	b.WriteString(strings.Repeat(" ", lw+5))
 	cells := []string{}
 	for _, c := range m.visibleCols() {
 		w := m.widths[c]
