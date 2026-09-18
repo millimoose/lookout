@@ -1,4 +1,4 @@
-module lv
+module lookout
 
 go 1.27.1
 

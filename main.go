@@ -10,9 +10,9 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-const usage = `lv — NDJSON log file viewer
+const usage = `lookout — NDJSON log file viewer
 
-usage: lv [--tail] <file.ndjson>
+usage: lookout [--tail] <file.ndjson>
 
 keys:
   ↑/↓ j/k     scroll             /    filter (key=value or substring; space = AND)
@@ -35,18 +35,18 @@ func main() {
 
 	f, err := os.Open(path)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "lv:", err)
+		fmt.Fprintln(os.Stderr, "lookout:", err)
 		os.Exit(1)
 	}
 	entries, lines, err := ParseEntries(f)
 	f.Close()
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "lv:", err)
+		fmt.Fprintln(os.Stderr, "lookout:", err)
 		os.Exit(1)
 	}
 	offset, err := LastLineEnd(path)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "lv:", err)
+		fmt.Fprintln(os.Stderr, "lookout:", err)
 		os.Exit(1)
 	}
 
@@ -58,7 +58,7 @@ func main() {
 	p := tea.NewProgram(NewModel(path, entries, lines, followCh, tail),
 		tea.WithAltScreen(), tea.WithContext(ctx))
 	if _, err := p.Run(); err != nil {
-		fmt.Fprintln(os.Stderr, "lv:", err)
+		fmt.Fprintln(os.Stderr, "lookout:", err)
 		os.Exit(1)
 	}
 }
