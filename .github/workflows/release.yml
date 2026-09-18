@@ -1,0 +1,65 @@
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - { os: ubuntu-latest, goos: windows, goarch: amd64, ext: .exe, archive: zip }
+          - { os: ubuntu-latest, goos: linux, goarch: amd64, ext: "", archive: tar.gz }
+          - { os: ubuntu-latest, goos: darwin, goarch: arm64, ext: "", archive: tar.gz }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Build
+        shell: bash
+        run: |
+          mkdir -p dist
+          go build -trimpath -ldflags "-s -w" -o "dist/lookout${{ matrix.ext }}" .
+      - name: Package (zip)
+        if: matrix.archive == 'zip'
+        shell: bash
+        run: |
+          cd dist
+          zip "lookout-${{ matrix.goos }}-${{ matrix.goarch }}.zip" "lookout${{ matrix.ext }}"
+      - name: Package (tar.gz)
+        if: matrix.archive != 'zip'
+        shell: bash
+        run: |
+          cd dist
+          tar czf "lookout-${{ matrix.goos }}-${{ matrix.goarch }}.tar.gz" "lookout${{ matrix.ext }}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lookout-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: dist/lookout-*
+          if-no-files-found: error
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Checksums
+        shell: bash
+        run: |
+          cd dist
+          sha256sum lookout-* > SHA256SUMS
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        shell: bash
+        run: gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --verify-tag --generate-notes dist/*
